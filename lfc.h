@@ -94,11 +94,11 @@ void* lf_spsc_dequeue(LFSPSCQueue*, void*LF_RESTRICT out_buffer) LF_NONNULL_ARGS
 #define LF_TYPEOF(...) __typeof__(__VA_ARGS__)
 #elif __GNUC__
 #pragma GCC system_header
-#define LF_TYPEOF(...) typeof(__VA_ARGS__)
+#define LF_TYPEOF(...) __typeof__(__VA_ARGS__)
 #endif
 
 #define LF_ENQUEUE(QUEUE, ELEM) lf_spsc_enqueue( \
-    (LFSPSCQueue*)(QUEUE), &(struct { LF_TYPEOF(ELEM) elem; }){ ELEM })
+    (LFSPSCQueue*)(QUEUE), &(struct { LF_TYPEOF(ELEM) elem; }) { ELEM }.elem)
 
 #define LF_OVERLOAD2(_0, _1, RESOLVED, ...) RESOLVED
 #define LF_DEQUEUE1(QUEUE)      lf_spsc_dequeue((LFSPSCQueue*)(QUEUE), &(LF_TYPEOF(*(QUEUE))){0})

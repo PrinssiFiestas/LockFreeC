@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Wextra -Werror -Wpedantic -std=c11 -lm -lpthread
+CFLAGS = -Wall -Wextra -Werror -Wpedantic -lm -lpthread -std=c11
 
 tests:
 	$(CC) -o $@ tests.c $(CFLAGS)
