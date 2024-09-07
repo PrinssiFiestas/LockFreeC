@@ -93,7 +93,7 @@ void* lf_spsc_dequeue(LFSPSCQueue*, void*LF_RESTRICT out_buffer) LF_NONNULL_ARGS
 #elif __clang__ || _MSC_VER
 #define LF_TYPEOF(...) __typeof__(__VA_ARGS__)
 #elif __GNUC__
-#pragma system_header
+#pragma GCC system_header
 #define LF_TYPEOF(...) typeof(__VA_ARGS__)
 #endif
 
@@ -147,13 +147,13 @@ static inline LFUint lf_index(const LFSPSCQueue* queue, const LFUint i)
     return i & (queue->buffer_size - 1);
 }
 
-bool lf_spsc_enqueue(LFSPSCQueue*LF_RESTRICT queue, const void*LF_RESTRICT data);
+bool lf_spsc_enqueue(LFSPSCQueue*LF_RESTRICT queue, const void*LF_RESTRICT data)
 {
     const LFUint old_head = atomic_load_explicit(&queue->head, memory_order_acquire);
     const LFUint i = lf_index(queue, old_head);
     if (i == lf_index(queue, atomic_load_explicit(&queue->tail, memory_order_relaxed) - 1))
         return false;
-    memcpy((char*)queue->buffer + i * queue->element_size, data, data_size);
+    memcpy((char*)queue->buffer + i * queue->element_size, data, queue->element_size);
     const LFUint new_head = old_head + 1;
     atomic_store_explicit(&queue->head, new_head, memory_order_release);
     return true;
@@ -162,11 +162,11 @@ bool lf_spsc_enqueue(LFSPSCQueue*LF_RESTRICT queue, const void*LF_RESTRICT data)
 void* lf_spsc_dequeue(LFSPSCQueue*LF_RESTRICT queue, void*LF_RESTRICT out_buffer)
 {
     const LFUint old_tail = atomic_load_explicit(&queue->tail, memory_order_acquire);
-    if (old_tail == atomic_load_explicit(&queue->head, memory_order_relaxed)
+    if (old_tail == atomic_load_explicit(&queue->head, memory_order_relaxed))
         return NULL;
     memcpy(out_buffer,
         (char*)queue->buffer + lf_index(queue, old_tail) * queue->element_size,
-        data_size);
+        queue->element_size);
     const LFUint new_tail = old_tail + 1;
     atomic_store_explicit(&queue->tail, new_tail, memory_order_release);
     return out_buffer;
