@@ -39,15 +39,15 @@ void* produce(void*_)
 double filter(double f)
 {
     #define FLT_WINDOW (1 << 8)
+    static size_t i   = 0 ;
+    static double sum = 0.;
     static double arr[FLT_WINDOW] = {0};
-    static size_t i = 0;
 
+    sum += f;
+    sum -= arr[i];
     arr[i] = f;
     i = (i + 1) & (FLT_WINDOW - 1);
 
-    double sum = 0;
-    for (size_t j = 0; j < FLT_WINDOW; ++j)
-        sum += arr[j];
     return sum / FLT_WINDOW;
 }
 
