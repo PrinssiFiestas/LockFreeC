@@ -10,10 +10,6 @@
 #include <string.h>
 #include <assert.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #if ATOMIC_LLONG_LOCK_FREE == 2
 typedef unsigned long long LFUint;
 #else
@@ -27,20 +23,23 @@ typedef unsigned LFUint;
 #define LF_RESTRICT __restrict
 #endif
 
-typedef struct queue
+typedef struct lf_queue
 {
     _Alignas(64)_Atomic LFUint head;
     _Alignas(64)_Atomic LFUint tail;
     void*  buf;
     size_t buf_length;
-} Queue;
+} LFQueue;
 
-static inline LFUint lf_index(LFUint x, LFUint buf_size)
+static inline LFUint lf_index(LFUint x, LFUint queue_buffer_size)
 {
-    return x & (buf_size - 1);
+    const bool queue_buffer_size_is_power_of_2 = (queue_buffer_size & (queue_buffer_size - 1)) == 0;
+    assert(queue_buffer_size_is_power_of_2); (void)queue_buffer_size_is_power_of_2;
+    assert(queue_buffer_size > 0);
+    return x & (queue_buffer_size - 1);
 }
 
-static inline bool lf_enqueue(Queue* queue, const void*LF_RESTRICT data, size_t data_size)
+static inline bool lf_enqueue(LFQueue* queue, const void*LF_RESTRICT data, size_t data_size)
 {
     LFUint old_head = atomic_load_explicit(&queue->head, memory_order_acquire);
     if (lf_index(old_head, queue->buf_length) ==
@@ -54,7 +53,7 @@ static inline bool lf_enqueue(Queue* queue, const void*LF_RESTRICT data, size_t 
     return true;
 }
 
-static inline void* lf_dequeue(Queue* queue, void*LF_RESTRICT y, size_t y_size)
+static inline void* lf_dequeue(LFQueue* queue, void*LF_RESTRICT out, size_t out_size)
 {
     LFUint old_tail = atomic_load_explicit(&queue->tail, memory_order_acquire);
     if (old_tail == atomic_load_explicit(&queue->head, memory_order_relaxed))
@@ -63,12 +62,8 @@ static inline void* lf_dequeue(Queue* queue, void*LF_RESTRICT y, size_t y_size)
     LFUint new_tail = old_tail + 1;
     atomic_store_explicit(&queue->tail, new_tail, memory_order_release);
 
-    memcpy(y, (char*)queue->buf + y_size * lf_index(old_tail, queue->buf_length), y_size);
-    return y;
+    memcpy(out, (char*)queue->buf + out_size * lf_index(old_tail, queue->buf_length), out_size);
+    return out;
 }
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
 
 #endif // LFC_H_INCLUDED

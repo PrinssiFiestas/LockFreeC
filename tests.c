@@ -11,7 +11,7 @@ GPArena arena;
 // the fastest.
 #define QUEUE_BUF_SIZE (1 << 10)
 
-Queue queue = {0};
+LFQueue queue = {0};
 
 #define DATA_LENGTH (1024ull * 1024ull)
 
