@@ -11,7 +11,12 @@ GPArena arena;
 // the fastest.
 #define QUEUE_BUF_SIZE (1 << 10)
 
-LFQueue queue = {0};
+#define MACRO_TEST 1
+#if MACRO_TEST
+LFQueue(size_t) queue = lf_queue(size_t, QUEUE_BUF_SIZE);
+#else
+LFSPSCQueue queue = {0};
+#endif
 
 #define DATA_LENGTH (1024ull * 1024ull)
 
@@ -20,7 +25,11 @@ void* consume(void*_arr)
     size_t* arr =_arr;
     size_t arr_length = 0;
     while (arr_length < DATA_LENGTH) {
-        size_t* data = lf_dequeue(&queue, &(size_t){0}, sizeof(size_t));
+        #if MACRO_TEST
+        size_t* data = lf_dequeue(queue);
+        #else
+        size_t* data = lf_spsc_dequeue(&queue, &(size_t){0}, sizeof(size_t));
+        #endif
         if (data == NULL)
             continue;
         arr[arr_length++] = *data;
@@ -28,20 +37,26 @@ void* consume(void*_arr)
     return NULL;
 }
 
+int* I = (int*)&(LFSPSCQueue){ .buffer = (int[4]){0}, .buffer_length = 4 };
+
 void* produce(void*_)
 {
     (void)_;
     for (size_t i = 0; i < DATA_LENGTH; ++i)
-        while ( ! lf_enqueue(&queue, &(size_t){i + 1}, sizeof(size_t)));
+        #if MACRO_TEST
+        while ( ! lf_enqueue(queue, i + 1));
+        #else
+        while ( ! lf_spsc_enqueue(&queue, &(size_t){i + 1}, sizeof(size_t)));
+        #endif
     return NULL;
 }
 
 double filter(double f)
 {
     #define FLT_WINDOW (1 << 8)
+    static double arr[FLT_WINDOW] = {0};
     static size_t i   = 0 ;
     static double sum = 0.;
-    static double arr[FLT_WINDOW] = {0};
 
     sum += f;
     sum -= arr[i];
@@ -63,8 +78,10 @@ int main(void)
     arena = gp_arena_new(1024 * 1024 * 1024);
     void* arena_start = gp_alloc(&arena, 0);
     static size_t arr[DATA_LENGTH] = {0};
-    queue.buf = gp_alloc(&arena, QUEUE_BUF_SIZE * sizeof(size_t));
-    queue.buf_length = QUEUE_BUF_SIZE;
+    #if ! MACRO_TEST
+    queue.buffer = gp_alloc(&arena, QUEUE_BUF_SIZE * sizeof(size_t));
+    queue.buffer_length = QUEUE_BUF_SIZE;
+    #endif
     signal(SIGINT, be_done);
 
     start:
