@@ -126,8 +126,21 @@ static inline T* LF_DEQUEUE(LFQueue(T) queue, T* out)
 
 #ifdef LFC_IMPLEMENTATION
 
+#define LF_MUTEX_TEST   0
+#if     LF_MUTEX_TEST
+mtx_t   lf_mutex;
+#define LF_MUTEX_INIT   mtx_init(&lf_mutex, mtx_plain)
+#define LF_MUTEX_LOCK   mtx_lock(&lf_mutex)
+#define LF_MUTEX_UNLOCK mtx_unlock(&lf_mutex)
+#else
+#define LF_MUTEX_INIT
+#define LF_MUTEX_LOCK
+#define LF_MUTEX_UNLOCK
+#endif
+
 LFSPSCQueue* lf_spsc_queue(LFSPSCQueue* queue, size_t element_size, void* buffer, size_t buffer_size)
 {
+    LF_MUTEX_INIT;
     #ifndef NDEBUG
     const bool queue_buffer_size_is_power_of_2 =
         (queue->buffer_size & (queue->buffer_size - 1)) == 0;
@@ -153,9 +166,11 @@ bool lf_spsc_enqueue(LFSPSCQueue*LF_RESTRICT queue, const void*LF_RESTRICT data)
     const LFUint i = lf_index(queue, old_head);
     if (i == lf_index(queue, atomic_load_explicit(&queue->tail, memory_order_relaxed) - 1))
         return false;
+    LF_MUTEX_LOCK;
     memcpy((char*)queue->buffer + i * queue->element_size, data, queue->element_size);
     const LFUint new_head = old_head + 1;
     atomic_store_explicit(&queue->head, new_head, memory_order_release);
+    LF_MUTEX_UNLOCK;
     return true;
 }
 
@@ -164,11 +179,13 @@ void* lf_spsc_dequeue(LFSPSCQueue*LF_RESTRICT queue, void*LF_RESTRICT out_buffer
     const LFUint old_tail = atomic_load_explicit(&queue->tail, memory_order_acquire);
     if (old_tail == atomic_load_explicit(&queue->head, memory_order_relaxed))
         return NULL;
+    LF_MUTEX_LOCK;
     memcpy(out_buffer,
         (char*)queue->buffer + lf_index(queue, old_tail) * queue->element_size,
         queue->element_size);
     const LFUint new_tail = old_tail + 1;
     atomic_store_explicit(&queue->tail, new_tail, memory_order_release);
+    LF_MUTEX_UNLOCK;
     return out_buffer;
 }
 
