@@ -3,7 +3,7 @@
 // https://github.com/PrinssiFiestas/LockFreeC/blob/main/LICENSE
 
 #ifndef LFC_H_INCLUDED
-#define LFC_H_INCLUDED
+#define LFC_H_INCLUDED 1
 
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -18,15 +18,6 @@
 // ----------------------------------------------------------------------------
 
 
-#if ATOMIC_LLONG_LOCK_FREE == 2
-/** Guaranteed lock-free when used as atomic.*/
-typedef unsigned long long LFUint;
-#else
-static_assert(ATOMIC_INT_LOCK_FREE == 2, "No suitable atomics available.");
-/** Guaranteed lock-free when used as atomic.*/
-typedef unsigned LFUint;
-#endif
-
 // ------------------------------------------------------------
 // Wait-free Single Producer Single Consumer type generic queue
 
@@ -35,6 +26,7 @@ typedef unsigned LFUint;
 
 /** Create generic queue. C only.
  * @p buffer_length specifies how many elements of type @p T fit in @p buffer.
+ * For best performance, buffer size shuold not exceed 32 KB to fit in L3 cache.
  * If @p buffer is not provided, it will be created on stack if local scope, or
  * statically if global scope.
  */
@@ -54,13 +46,23 @@ typedef unsigned LFUint;
 
 // ------------------------------------------------------------
 // Wait-free Single Producer Single Consumer non-generic queue
-// TODO document these too.
+
+#if ATOMIC_LLONG_LOCK_FREE == 2
+/** Guaranteed lock-free when used as atomic.*/
+typedef unsigned long long LFUint;
+#else
+static_assert(ATOMIC_INT_LOCK_FREE == 2, "No suitable atomics available.");
+/** Guaranteed lock-free when used as atomic.*/
+typedef unsigned LFUint;
+#endif
 
 #if !__cplusplus
 #define LF_RESTRICT restrict
 #else
 #define LF_RESTRICT __restrict
 #endif
+
+// TODO document these too.
 
 typedef struct lf_spsc_queue
 {
@@ -70,13 +72,7 @@ typedef struct lf_spsc_queue
     size_t buffer_length;
 } LFSPSCQueue;
 
-static inline LFUint lf_index(LFUint x, LFUint queue_buffer_size)
-{
-    const bool queue_buffer_size_is_power_of_2 = (queue_buffer_size & (queue_buffer_size - 1)) == 0;
-    assert(queue_buffer_size_is_power_of_2); (void)queue_buffer_size_is_power_of_2;
-    assert(queue_buffer_size > 0);
-    return x & (queue_buffer_size - 1);
-}
+static inline LFUint lf_index(LFUint x, LFUint queue_buffer_size);
 
 static inline bool lf_spsc_enqueue(LFSPSCQueue* queue, const void*LF_RESTRICT data, size_t data_size)
 {
@@ -114,6 +110,14 @@ static inline void* lf_spsc_dequeue(LFSPSCQueue* queue, void*LF_RESTRICT out, si
 //
 // ----------------------------------------------------------------------------
 
+
+static inline LFUint lf_index(LFUint x, LFUint queue_buffer_size)
+{
+    const bool queue_buffer_size_is_power_of_2 = (queue_buffer_size & (queue_buffer_size - 1)) == 0;
+    assert(queue_buffer_size_is_power_of_2); (void)queue_buffer_size_is_power_of_2;
+    assert(queue_buffer_size > 0);
+    return x & (queue_buffer_size - 1);
+}
 
 #if __STDC_VERSION__ >= 202311L
 #define LF_TYPEOF(...) typeof(__VA_ARGS__)
