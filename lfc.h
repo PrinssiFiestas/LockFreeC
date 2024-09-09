@@ -5,7 +5,12 @@
 #ifndef LFC_H_INCLUDED
 #define LFC_H_INCLUDED 1
 
+#if !__cplusplus
 #include <stdatomic.h>
+#else
+#include <atomic>
+#endif
+#include <stdalign.h>
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
@@ -57,25 +62,37 @@ typedef unsigned LFUint;
 #endif
 
 #if !__cplusplus
+#define LFAtomic(...) _Atomic(__VA_ARGS__)
 #define LF_RESTRICT restrict
+#define LF_USING_NAMESPACE_STD
 #else
+#define LFAtomic(...) std::atomic<__VA_ARGS__>
 #define LF_RESTRICT __restrict
+#define LF_USING_NAMESPACE_STD using namespace std
+#endif
+
+#if __GNUC__
+#define LF_NONNULL_ARGS(...) __attribute__((nonnull (__VA_ARGS__)))
+#else
+#define LF_NONNULL_ARGS(...)
 #endif
 
 // TODO document these too.
 
 typedef struct lf_spsc_queue
 {
-    _Alignas(64)_Atomic LFUint head;
-    _Alignas(64)_Atomic LFUint tail;
+    alignas(64) LFAtomic(LFUint) head;
+    alignas(64) LFAtomic(LFUint) tail;
     void*  buffer;
     size_t buffer_length;
 } LFSPSCQueue;
 
 static inline LFUint lf_index(LFUint x, LFUint queue_buffer_size);
 
+LF_NONNULL_ARGS()
 static inline bool lf_spsc_enqueue(LFSPSCQueue* queue, const void*LF_RESTRICT data, size_t data_size)
 {
+    LF_USING_NAMESPACE_STD;
     LFUint old_head = atomic_load_explicit(&queue->head, memory_order_acquire);
     if (lf_index(old_head, queue->buffer_length) ==
         lf_index(atomic_load_explicit(&queue->tail, memory_order_relaxed) - 1, queue->buffer_length))
@@ -88,8 +105,10 @@ static inline bool lf_spsc_enqueue(LFSPSCQueue* queue, const void*LF_RESTRICT da
     return true;
 }
 
+LF_NONNULL_ARGS()
 static inline void* lf_spsc_dequeue(LFSPSCQueue* queue, void*LF_RESTRICT out, size_t out_size)
 {
+    LF_USING_NAMESPACE_STD;
     LFUint old_tail = atomic_load_explicit(&queue->tail, memory_order_acquire);
     if (old_tail == atomic_load_explicit(&queue->head, memory_order_relaxed))
         return NULL;

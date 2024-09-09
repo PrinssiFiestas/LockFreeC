@@ -12,8 +12,10 @@ GPArena arena;
 #define QUEUE_BUF_SIZE (1 << 10)
 
 #define MACRO_TEST 1
-#if MACRO_TEST
+#if MACRO_TEST && !__cplusplus
 LFQueue(size_t) queue = lf_queue(size_t, QUEUE_BUF_SIZE);
+#elif __cplusplus
+LFSPSCQueue queue = {};
 #else
 LFSPSCQueue queue = {0};
 #endif
@@ -22,13 +24,16 @@ LFSPSCQueue queue = {0};
 
 void* consume(void*_arr)
 {
-    size_t* arr =_arr;
+    size_t* arr = (size_t*)_arr;
     size_t arr_length = 0;
     while (arr_length < DATA_LENGTH) {
-        #if MACRO_TEST
+        #if __cplusplus
+        size_t  data_mem;
+        size_t* data = (size_t*)lf_spsc_dequeue(&queue, &data_mem, sizeof*data);
+        #elif MACRO_TEST
         size_t* data = lf_dequeue(queue);
         #else
-        size_t* data = lf_spsc_dequeue(&queue, &(size_t){0}, sizeof(size_t));
+        size_t* data = lf_spsc_dequeue(&queue, &(size_t){0}, sizeof*data);
         #endif
         if (data == NULL)
             continue;
@@ -37,17 +42,19 @@ void* consume(void*_arr)
     return NULL;
 }
 
-int* I = (int*)&(LFSPSCQueue){ .buffer = (int[4]){0}, .buffer_length = 4 };
-
 void* produce(void*_)
 {
     (void)_;
-    for (size_t i = 0; i < DATA_LENGTH; ++i)
-        #if MACRO_TEST
+    for (size_t i = 0; i < DATA_LENGTH; ++i) {
+        #if __cplusplus
+        size_t elem = i + 1;
+        while ( ! lf_spsc_enqueue(&queue, &elem, sizeof elem));
+        #elif MACRO_TEST
         while ( ! lf_enqueue(queue, i + 1));
         #else
         while ( ! lf_spsc_enqueue(&queue, &(size_t){i + 1}, sizeof(size_t)));
         #endif
+    }
     return NULL;
 }
 
@@ -78,7 +85,7 @@ int main(void)
     arena = gp_arena_new(1024 * 1024 * 1024);
     void* arena_start = gp_alloc(&arena, 0);
     static size_t arr[DATA_LENGTH] = {0};
-    #if ! MACRO_TEST
+    #if ! MACRO_TEST || __cplusplus
     queue.buffer = gp_alloc(&arena, QUEUE_BUF_SIZE * sizeof(size_t));
     queue.buffer_length = QUEUE_BUF_SIZE;
     #endif

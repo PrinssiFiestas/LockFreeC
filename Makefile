@@ -12,7 +12,7 @@ release_tests: tests.c lfc.h gpc.o
 	./$@
 
 cpp_tests: tests.c lfc.h gpc.o
-	$(CXX) -o $@ $< gpc.o -O3 -DNDEBUG -std=c++23
+	$(CXX) -o $@ $< gpc.o -Wall -Wextra -Werror -Wpedantic -O3 -DNDEBUG -std=c++11
 	./$@
 
 clean:
