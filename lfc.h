@@ -38,10 +38,10 @@
 #define lf_queue(T,/* void* buffer = static_buffer, size_t buffer_length */...) (T*)&LF_OVERLOAD2(__VA_ARGS__, LF_QUEUE_WITH_BUFFER, LF_QUEUE_WOUT_BUFFER,)(T,__VA_ARGS__)
 
 /** Generic enqueue.
- * @return `true` if @p ELEM got successfully enqueued, `false` if queue was
+ * @return `true` if @p elem got successfully enqueued, `false` if queue was
  * full, in which case the element was not queued.
  */
-#define lf_enqueue(/* LFQueue(T) */QUEUE,/* T */ELEM) lf_spsc_enqueue((LFSPSCQueue*)(QUEUE), &(struct { LF_TYPEOF(*(QUEUE))_; }) { ELEM }, sizeof(ELEM))
+#define lf_enqueue(/* LFQueue(T) */queue,/* T */elem) lf_spsc_enqueue((LFSPSCQueue*)(queue), &(struct { LF_TYPEOF(*(queue))_; }) { elem }, sizeof(elem))
 
 /** Generic dequeue.
  * @return @p out if @p queue was not empty, `NULL` otherwise. If @p out is not
@@ -55,10 +55,13 @@
 #if ATOMIC_LLONG_LOCK_FREE == 2
 /** Guaranteed lock-free when used as atomic.*/
 typedef unsigned long long LFUint;
-#else
-static_assert(ATOMIC_INT_LOCK_FREE == 2, "No suitable atomics available.");
+#elif ATOMIC_INT_LOCK_FREE == 2
 /** Guaranteed lock-free when used as atomic.*/
 typedef unsigned LFUint;
+#else
+/** Guaranteed lock-free when used as atomic.*/
+typedef unsigned short LFUint;
+static_assert(ATOMIC_SHORT_LOCK_FREE == 2, "No suitable lock-free integers available");
 #endif
 
 #if !__cplusplus

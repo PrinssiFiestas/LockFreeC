@@ -83,8 +83,7 @@ void be_done(int _)
 int main(void)
 {
     arena = gp_arena_new(1024 * 1024 * 1024);
-    void* arena_start = gp_alloc(&arena, 0);
-    static size_t arr[DATA_LENGTH] = {0};
+    size_t* arr = gp_alloc(&arena, DATA_LENGTH * sizeof arr[0]);
     #if ! MACRO_TEST || __cplusplus
     queue.buffer = gp_alloc(&arena, QUEUE_BUF_SIZE * sizeof(size_t));
     queue.buffer_length = QUEUE_BUF_SIZE;
@@ -103,8 +102,7 @@ int main(void)
 
     for (size_t i = 0; i < DATA_LENGTH - 1; ++i)
         gp_assert(arr[i] == arr[i + 1] - 1 && arr[i] != 0, arr[i], arr[i + 1], i);
-    memset(arr, 0, sizeof arr);
-    gp_arena_rewind(&arena, arena_start);
+    memset(arr, 0, DATA_LENGTH * sizeof arr[0]);
     gp_println("Success. Time: %f", filter((double)(t1 - t0) / 1000000.));
     gp_print("\r" GP_CURSOR_UP(2));
     if ( ! done)
