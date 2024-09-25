@@ -50,8 +50,9 @@
 #define lf_dequeue(/* LFQueue(T) queue, T* out = static_buffer */...) LF_OVERLOAD2(__VA_ARGS__, LF_DEQUEUE_WITH_BUFFER, LF_DEQUEUE_WOUT_BUFFER,)(__VA_ARGS__)
 
 // ------------------------------------------------------------
-// Wait-free Single Producer Single Consumer non-generic queue
+// Wait-free Single Producer Single Consumer queue
 
+static_assert(ATOMIC_SHORT_LOCK_FREE == 2, "No suitable lock-free integers available");
 #if ATOMIC_LLONG_LOCK_FREE == 2
 /** Guaranteed lock-free when used as atomic.*/
 typedef unsigned long long LFUint;
@@ -61,7 +62,6 @@ typedef unsigned LFUint;
 #else
 /** Guaranteed lock-free when used as atomic.*/
 typedef unsigned short LFUint;
-static_assert(ATOMIC_SHORT_LOCK_FREE == 2, "No suitable lock-free integers available");
 #endif
 
 #if !__cplusplus

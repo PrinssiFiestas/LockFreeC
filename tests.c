@@ -58,6 +58,7 @@ void* produce(void*_)
     return NULL;
 }
 
+// Moving average for benchmark
 double filter(double f)
 {
     #define FLT_WINDOW (1 << 8)
@@ -73,6 +74,7 @@ double filter(double f)
     return sum / FLT_WINDOW;
 }
 
+// Signal handler
 bool done = false;
 void be_done(int _)
 {
